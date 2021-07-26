@@ -1,0 +1,27 @@
+import requests #Загружаем библиотеку которая понадобится для отправки и получения запросов через HTTP/HTTPS
+import os #Загружаем библиотеку для работы с операционной системой (если что-то пошло не так, то можно просто подствить токен вместо %s
+username = 'prescriptor' #введите своё имя на GitHub
+api_token = os.environ.get("GITHUB_TOKEN") #Здесь мы запрашиваем токен у системы и присваеваем его переменной api_token
+url = 'https://api.github.com/graphql' #Присваиваем переменной url адрес единой ссылки для работы с GraphQL
+headers = {"Authorization": 'token %s' % api_token} #Переменная с данными для авторизации
+
+json = { #Помещаем в переменную дальнейший запрос
+    'query' : '{ ' #Инициация запроса/мутации
+            'viewer { ' #Вид запроса, в данном случе предполагающий, что речь идёт именно о текущем юзвере. 
+                'repositories(first:10) { ' #Объект, к которому мы обращаемся и обязательный для него аргумент RepositoryConnection!, 
+                                            # котоырй, в данном случае, принимает значение всех десяти первых репозиториев
+                    'edges { ' #Указав один из возможных атрибутов (first или last) мы попадаем в объект RepositoryConnection, содержащий т.н. окрестность
+                        'node {name}' # Окрестность, в свою очередь, содержит узел (node), к которому мы обращаемся  
+                    '} '
+                '} '
+            '} '
+    '}'
+}
+
+data = requests.post(url=url, json=json, headers=headers)
+data = data.json()
+
+repos = data['data']['viewer']['repositories']['edges']
+
+for repo in repos:
+    print(repo['node']['name'])
