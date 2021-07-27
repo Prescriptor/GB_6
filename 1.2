@@ -18,10 +18,16 @@ json = { #Помещаем в переменную дальнейший запр
     '}'
 }
 
-data = requests.post(url=url, json=json, headers=headers)
-data = data.json()
+data = requests.post(url=url, json=json, headers=headers).json() # создаём запрос и помещаем ответ в .json
 
-repos = data['data']['viewer']['repositories']['edges']
+string = '' # создаём пустую строку для дальнейшей записи данных
+repos = data['data']['viewer']['repositories']['edges'] # обращаемся к окрестности данных
 
 for repo in repos:
-    print(repo['node']['name'])
+    string = string+repo['node']['name']+'\n' # для каждого узла окрестности извлекаем значение имени и добавляем к строке через разделитель
+
+my_file = open("my_file.json", "w+") # создаём и открываем файл в режиме перезаписи, далее записываем в него строку с перечнем репозиториев
+my_file.write(string)
+my_file.close()
+
+print(string) # контрольная распечатка результата
