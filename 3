@@ -1,0 +1,80 @@
+# Домашнее задание №3 в котором функция, производит поиск и выводит на экран вакансии
+# с заработной платой больше введённой суммы
+import requests
+from bs4 import BeautifulSoup
+# from fake_headers import Headers
+# import urllib.parse
+import re
+from pymongo import MongoClient
+
+# Подключаем MongoDB:
+client = MongoClient('localhost', 27017)
+db = client['vacancies_database']
+collection = db.vacancies_collection
+
+
+query = input('Введите сумму: ') #запрашиваем у пользователя интересующую сумму
+query_sum = int(query)
+
+# Создаём ссылки для обащения парсера
+sj_list_url = 'https://yalta.superjob.ru/vacancy/search/'
+
+# объявляем переменные для хранения результатов
+result_categories = ["Вакансия", "Компания", "Местоположение", "Зарплата", "Ссылка"]
+result_list = []
+element = []
+result = []
+
+# Функция сбора информации со страницы вакансии
+def get_sjposition_info(position_url): # Функция получения информации со страницы вакансии SJ
+    posishion_content = requests.get(position_url)
+    posishion_soup = BeautifulSoup(posishion_content.text, 'lxml')
+    city_div = posishion_soup.find(attrs={'class': "f-test-address"}).next.next.text
+    zp = posishion_soup.find(attrs={'class': "ZON4b"}).next.next.text.replace('\xa0', ' ')
+    company_name = posishion_soup.select_one('.icMQ_ h2').text.replace('\xa0', ' ')
+    return (city_div, zp, company_name)
+
+# Парсинг результатов поиска по интересующей вакансии
+sj_response = requests.get(sj_list_url).text
+sj_soup = BeautifulSoup(sj_response, 'lxml')
+sj_vacancies = sj_soup.find_all(attrs={'class': "f-test-vacancy-item"})  # Вытаскиваем все карточки вакансий из выдачи
+
+
+# Цикл извлечения параметров вакансии из собранных карточек
+for vacant in sj_vacancies:
+    #ищем данные о названии вакансии, ссылке на её страницу. Город, зарплата и названия компании извлекаются через функцию get_sjposition_info()
+    posishion = vacant.find(attrs={'class': re.compile("f-test-link-")}).text
+    vacancy_href = vacant.find(attrs={'href': re.compile(".html")})
+    # id = str(vacancy_href['href'])[-6:-14:-1][::-1] # Рудимент оставлен как возможность для расширения функционала
+    posishion_url = str(''.join(['https://superjob.ru', vacancy_href['href']]))
+    try:
+        city = get_sjposition_info(posishion_url)[0]
+    except Exception as city_exc:
+        city = 'Не указан'
+    try:
+        zp = ''.join(re.findall('\d+', get_sjposition_info(posishion_url)[1])[0:2:])
+        zp = int(zp)
+    except Exception as zp_exc:
+        zp = 0
+    try:
+        company_name = get_sjposition_info(posishion_url)[2]
+    except Exception as zp_exc:
+        company_name = 'Не указана'
+    finally:
+        if zp > query_sum:
+            position_desc = [posishion, company_name, city, zp, posishion_url]
+            result_list.append(position_desc)  # Передаём параметры на храненение
+
+# Фильтруем возможные повторы
+for r in result_list:
+    if r[4] not in element:
+        element.append(r[4])
+        result_dict = dict(zip(result_categories, r))
+        result.append(result_dict)
+
+
+# Формируем выдычу
+print(result)
+
+#Отправляем записи в БД
+db.inventory.insert_many(result)
