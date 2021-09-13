@@ -1,0 +1,39 @@
+# ДЗ к четвёртому уроку, в котором мы парсим сайт с помощью Xpath
+from pprint import pprint
+from lxml import html
+import requests
+import time
+from fake_headers import Headers
+from datetime import date
+
+results = []
+yandex_result = {}
+header = Headers(headers=True).generate()  # fake header
+
+def request_to_yandex():
+    time.sleep(1)
+    response = requests.get('https://yandex.ru/news/')
+    root = html.fromstring(response.text)
+    items = root.xpath('//article[contains(@class, "mg-card ")]')  # Извлекаем карточки новостей
+
+    for item in items:  # Из карточки получаем необходимые данные
+        try:
+            header = item.xpath('.//div[@class = "mg-card__annotation" ]/text()')
+            origin = item.xpath('.//a[@class = "mg-card__source-link" ]/text()')
+            now_date = str(date.today())
+            timeing = item.xpath('.//span[@class = "mg-card-source__time" ]/text()')
+            href = item.xpath('.//a[@class = "mg-card__source-link" ]/@href')
+
+            yandex_result["header"] = header  # Формируем словарь с собранными данными
+            yandex_result["origin"] = origin
+            yandex_result["now_date"] = now_date
+            yandex_result["timeing"] = timeing
+            yandex_result["href"] = href
+
+            results.append(yandex_result)  # Добавляем данные из карточки в список результатов 
+        except:
+            print('Ошибка запроса request_to_yandex()')
+            
+request_to_yandex()  # Инициируем функцию сбора данных
+
+pprint(results)  # Распечатываем результат
